@@ -57,6 +57,7 @@ impl MyWindowHandler {
                                          0.99,
                                          0.9,
                                          retain);
+
             self.particles.push(particle);
         }
     }

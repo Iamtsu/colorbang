@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::Formatter;
 use speedy2d::dimen::Vec2;
 use speedy2d::color::Color;
 use speedy2d::{Graphics2D};
@@ -12,6 +14,19 @@ pub struct Particle {
     pub radius: f32,
     pub color: Color,
     pub retain: fn(&Self) -> bool,
+}
+
+impl fmt::Debug for Particle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Particle")
+            .field("pos",&self.pos)
+            .field("vel",&self.vel)
+            .field("drag_friction",&self.drag_friction)
+            .field("alpha_decay",&self.alpha_decay)
+            .field("radius",&self.radius)
+            .field("color",&self.color)
+            .finish()
+    }
 }
 
 impl Particle {
