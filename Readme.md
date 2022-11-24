@@ -13,3 +13,4 @@
 - [ ] score
 - [ ] game over
 - [ ] start game
+- [ ] webassembly project
