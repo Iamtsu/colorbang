@@ -1,12 +1,12 @@
 mod particle;
-
-use std::f32::consts::TAU;
-use speedy2d::color::Color;
-use speedy2d::{Graphics2D, Window, dimen::Vec2};
-use speedy2d::window::{MouseButton, WindowHandler, WindowHelper, WindowStartupInfo};
+mod sound;
 
 use rand::random;
-use speedy2d::dimen::Vector2;
+use speedy2d::color::Color;
+use speedy2d::{Graphics2D, Window};
+use speedy2d::window::{MouseButton, WindowHandler, WindowHelper, WindowStartupInfo};
+
+use speedy2d::dimen::{Vec2, Vector2};
 use speedy2d::shape::Rectangle;
 use speedy2d::time::Stopwatch;
 
@@ -18,6 +18,9 @@ const HEIGHT: f32 = 960.0;
 struct MyWindowHandler {
     timer: Stopwatch,
     frame_time: f64,
+    mouse_pos: Vec2,
+
+    sound: sound::SoundPlayer,
 
     particles: Vec<Particle>,
     background_color: Color,
@@ -31,34 +34,13 @@ impl MyWindowHandler {
         let timer = Stopwatch::new().unwrap();
 
         MyWindowHandler {
+            mouse_pos: Vec2::ZERO,
             frame_time: timer.secs_elapsed(),
+            sound: sound::SoundPlayer::new(),
             timer,
             particles,
-            background_color: Color::from_int_rgba(0, 0, 0, 10),
+            background_color: Color::from_int_rgba(0, 0, 0, 50),
             background_rect: Rectangle::new(Vector2::new(0.0, 0.0), Vector2::new(WIDTH, HEIGHT)),
-        }
-    }
-
-    fn spawn_particles(&mut self, num_particles: u32) {
-        let color = Color::from_rgb(0.0, 0.0, 1.0);
-        for _ in 0..num_particles {
-            let angle = random::<f32>() * TAU;
-            let speed = random::<f32>() * 500.0;
-
-            let vel = Vec2::new(angle.cos() * speed, angle.sin() * speed);
-
-            let retain = |particle: &Particle| -> bool {
-                particle.color.a() > 0.01
-            };
-
-            let particle = Particle::new(10.0, color,
-                                         Vec2::new(WIDTH / 2.0, HEIGHT / 2.0),
-                                         vel,
-                                         0.99,
-                                         0.9,
-                                         retain);
-
-            self.particles.push(particle);
         }
     }
 
@@ -79,9 +61,6 @@ impl WindowHandler for MyWindowHandler
     {
         let dt = self.frame_time();
 
-        // auto spawn more particles
-        self.spawn_particles(250);
-
         // set the window title
         helper.set_title(format!("Color Bang! FPS: {:.0} Particles: {}", 1.0 / dt, self.particles.len()));
 
@@ -98,18 +77,15 @@ impl WindowHandler for MyWindowHandler
         helper.request_redraw();
     }
 
+    fn on_mouse_move(&mut self, _helper: &mut WindowHelper<()>, position: Vec2) {
+        self.mouse_pos = position;
+    }
+
     fn on_mouse_button_down(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
-        match button {
-            MouseButton::Left => {
-                self.spawn_particles(10);
-            }
-            MouseButton::Middle => {
-                self.spawn_particles(1000);
-            }
-            MouseButton::Right => {
-                self.spawn_particles(100);
-            }
-            MouseButton::Other(_) => {}
+        if let MouseButton::Left = button {
+            self.sound.play();
+            let color = Color::from_rgb(random(), random(), random());
+            Particle::spawn_particles(&mut self.particles, 10, 500.0, color, self.mouse_pos);
         }
     }
 }
