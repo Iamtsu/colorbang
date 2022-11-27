@@ -34,7 +34,7 @@ impl GameEntity for Player {
         }
     }
 
-    fn deal_damage(&mut self) {
+    fn deal_damage(&mut self, _other_vel: &Vec2, _other_mass: f32) {
         self.radius -= 1.0;
     }
 }

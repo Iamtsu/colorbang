@@ -5,6 +5,7 @@ mod player;
 mod bullet;
 mod game_entity;
 
+use std::io::Repeat;
 use speedy2d::color::Color;
 use speedy2d::{Graphics2D, Window};
 use speedy2d::window::{MouseButton, WindowHandler, WindowHelper, WindowStartupInfo};
@@ -120,32 +121,60 @@ impl WindowHandler for MyWindowHandler
         self.player.draw(graphics);
         self.player.update(dt);
 
-        // enemies and bullets
+        // update enemies
         self.enemies.retain_mut(|enemy: &mut Enemy| {
-            enemy.draw(graphics);
+            return if enemy.update(dt) {
+                enemy.draw(graphics);
+                true
+            } else {
+                false
+            }
+        });
 
-            if collide(enemy, &self.player) {
+        /// collide with enemy
+        let len = self.enemies.len();
+        for i in 0..len {
+            let mut e1: Enemy = self.enemies.remove(i);
+
+            /// collide enemy with player
+            if collide(&e1, &self.player) {
                 self.sound.play();
-                enemy.deal_damage();
-                self.player.deal_damage();
-                Particle::spawn_particles(&mut self.particles, 10, 500.0, self.player.color, enemy.pos);
+                e1.deal_damage(&self.player.vel, self.player.radius);
+                self.player.deal_damage(&e1.vel, e1.radius);
+                Particle::spawn_particles(&mut self.particles, 10, 500.0, self.player.color, e1.pos);
             }
 
+            /// collide enemy with bullets
             self.bullets.retain_mut(|bullet: &mut Bullet| {
-                return if collide(enemy, bullet) {
+                return if collide(&e1, bullet) {
                     self.sound.play();
-                    enemy.deal_damage();
-                    bullet.deal_damage();
-                    Particle::spawn_particles(&mut self.particles, 80, 500.0, enemy.color, enemy.pos);
+                    e1.deal_damage(&bullet.vel, bullet.radius / 20.0);
+                    bullet.deal_damage(&e1.vel, e1.radius);
+                    Particle::spawn_particles(&mut self.particles, 80, 500.0, e1.color, e1.pos);
                     false
                 } else {
                     true
                 };
             });
 
-            enemy.update(dt)
-        });
+            /// collide enemy with enemy
+            for j in i + 1..len {
+                let mut e2: Enemy = self.enemies.remove(j - 1);
+                if collide(&e1, &e2) {
+                    self.sound.play();
+                    e1.deal_damage(&e2.vel, e2.radius);
+                    e2.deal_damage(&e1.vel, e1.radius);
+                    Particle::spawn_particles(&mut self.particles, 50, 500.0, e1.color, e1.pos);
+                }
+                self.enemies.insert(0,e2);
+            }
 
+            self.enemies.insert(0,e1);
+        }
+
+
+
+        // update bullets
         self.bullets.retain_mut(|bullet: &mut Bullet| {
             if bullet.health > 0 {
                 bullet.draw(graphics);
@@ -156,7 +185,7 @@ impl WindowHandler for MyWindowHandler
                 && bullet.pos.y > 0.0 && bullet.pos.y < HEIGHT
         });
 
-        // render particles
+        // render & update particles
         self.particles.retain_mut(|particle| {
             particle.draw(graphics);
             particle.update(dt)
@@ -164,7 +193,6 @@ impl WindowHandler for MyWindowHandler
 
         self.display_text(graphics, &format!("Level {}, Health: {}", self.level, self.player.radius), Vec2::new(20.0, 50.0));
         self.display_text(graphics, &format!("Super Bangs {}, Charged: {}", self.super_bang, self.charged_super_bang), Vec2::new(20.0, 90.0));
-
 
 
         // draw next frame
@@ -182,6 +210,9 @@ impl WindowHandler for MyWindowHandler
             self.bullets.push(Bullet::new(self.player.pos, vel, 5.0));
         } else if let MouseButton::Right = button {
             self.charging = true;
+        } else if let MouseButton::Middle = button {
+            Enemy::spawn_n(&mut self.enemies, 10, &self.player.pos);
+
         }
     }
 

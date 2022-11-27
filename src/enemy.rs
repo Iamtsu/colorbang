@@ -3,8 +3,8 @@ use rand::random;
 use speedy2d::color::Color;
 use speedy2d::dimen::Vec2;
 use speedy2d::Graphics2D;
-use crate::game_entity::{ColliderInfo, GameEntity};
-use crate::{COL_BULLET, COL_ENEMY, COL_PLAYER};
+use crate::game_entity::{ColliderInfo, GameEntity, impulse};
+use crate::{COL_BULLET, COL_ENEMY, COL_PLAYER, HEIGHT, WIDTH};
 
 #[derive(Clone)]
 pub struct Enemy {
@@ -12,7 +12,7 @@ pub struct Enemy {
     pub vel: Vec2,
     pub radius: f32,
     pub color: Color,
-    pub layer:u8,
+    pub layer: u8,
     pub mask: u8,
 }
 
@@ -23,21 +23,35 @@ impl GameEntity for Enemy {
 
     fn update(&mut self, dt: f32) -> bool {
         self.pos = self.pos + self.vel * dt;
+
+        if (self.pos.x + self.radius) < 0.0 {
+            self.pos.x = WIDTH - self.radius;
+        } else if (self.pos.x - self.radius) > WIDTH {
+            self.pos.x = self.radius;
+        }
+
+        if (self.pos.y + self.radius) < 0.0 {
+            self.pos.y = HEIGHT - self.radius;
+        } else if (self.pos.y - self.radius) > HEIGHT {
+            self.pos.y = 0.0 + self.radius;
+        }
+
         self.radius > 3.0
     }
 
     fn collider_info(&self) -> ColliderInfo {
         ColliderInfo {
             mask: &self.mask,
-            layer : & self.layer,
+            layer: &self.layer,
             pos: &self.pos,
             vel: &self.vel,
             radius: &self.radius,
         }
     }
 
-    fn deal_damage(&mut self) {
+    fn deal_damage(&mut self, other_vel: &Vec2, other_mass: f32) {
         self.radius = (self.radius - 5.0).max(0.0);
+        self.vel = impulse(&self.vel, self.radius, other_vel, other_mass);
     }
 }
 
@@ -57,7 +71,7 @@ impl Enemy {
             radius,
             color,
             layer: COL_ENEMY,
-            mask: COL_PLAYER | COL_BULLET
+            mask: COL_PLAYER | COL_BULLET | COL_ENEMY,
         }
     }
 

@@ -38,7 +38,7 @@ impl GameEntity for Bullet {
         }
     }
 
-    fn deal_damage(&mut self) {
+    fn deal_damage(&mut self, _other_vel: &Vec2, _other_mass: f32) {
         self.health = 0;
     }
 }
