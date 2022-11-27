@@ -6,7 +6,7 @@ use speedy2d::color::Color;
 use speedy2d::{Graphics2D};
 use rand::random;
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Particle {
     pub pos: Vec2,
     pub vel: Vec2,
@@ -30,7 +30,7 @@ impl fmt::Debug for Particle {
 }
 
 impl Particle {
-    pub fn new(radius: f32, color: Color, pos: Vec2, vel: Vec2, drag_friction: f32, alpha_decay: f32, retain: fn(&Particle) -> bool) -> Self {
+    pub fn new(radius: f32, color: Color, pos: Vec2, vel: Vec2, drag_friction: f32, alpha_decay: f32) -> Self {
         Particle {
             pos,
             vel,
@@ -74,16 +74,11 @@ impl Particle {
 
             let vel = Vec2::new(angle.cos() * speed, angle.sin() * speed);
 
-            let retain = |particle: &Particle| -> bool {
-                particle.color.a() > 0.001
-            };
-
-            let particle = Particle::new(10.0, color,
+            let particle = Particle::new(5.0, color,
                                          pos,
                                          vel,
                                          0.99,
-                                         1.0,
-                                         retain);
+                                         1.0);
 
             particles.push(particle);
         }

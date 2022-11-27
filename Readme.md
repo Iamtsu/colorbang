@@ -6,10 +6,10 @@
 - [x] movement blur
 - [x] particles
 - [x] sound
-- [ ] player
-- [ ] shooting
-- [ ] enemies
-- [ ] collision
+- [x] player
+- [x] shooting
+- [x] enemies
+- [x] collision
 - [ ] score
 - [ ] game over
 - [ ] start game

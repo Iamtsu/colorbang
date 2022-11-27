@@ -23,6 +23,7 @@ impl SoundPlayer {
     }
 
     pub fn play(&mut self) {
-        self.manager.play(self.sound.clone()).unwrap();
+        let _ = self.manager.play(self.sound.clone());
+
     }
 }
