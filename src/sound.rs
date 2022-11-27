@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use kira::{
     manager::{
         AudioManager, AudioManagerSettings,
@@ -15,7 +16,9 @@ impl SoundPlayer {
 
     pub fn new() -> Self{
         let manager = AudioManager::<CpalBackend>::new(AudioManagerSettings::default()).unwrap();
-        let sound = StaticSoundData::from_file("assets/blip.ogg", StaticSoundSettings::default()).unwrap();
+
+        //let sound = StaticSoundData::from_file("assets/blip.ogg", StaticSoundSettings::default()).unwrap();
+        let sound = StaticSoundData::from_cursor(Cursor::new(include_bytes!("../assets/blip.ogg")), StaticSoundSettings::default()).unwrap();
         SoundPlayer {
             manager,
             sound

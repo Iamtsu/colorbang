@@ -37,6 +37,8 @@ struct MyWindowHandler {
 
     level: u32,
     super_bang: u32,
+    charged_super_bang: u32,
+    charging: bool,
 
     player: Player,
     enemies: Vec<Enemy>,
@@ -54,7 +56,7 @@ impl MyWindowHandler {
         let particles = Vec::new();
         let timer = Stopwatch::new().unwrap();
 
-        let font = Font::new(include_bytes!("../assets/Outwrite.ttf")).unwrap();
+        let font = Font::new(include_bytes!("../assets/Nasa21-l23X.ttf")).unwrap();
 
         MyWindowHandler {
             mouse_pos: Vec2::ZERO,
@@ -64,6 +66,8 @@ impl MyWindowHandler {
             font,
             level: 1,
             super_bang: 0,
+            charged_super_bang: 0,
+            charging: false,
             player: Player::new(Vec2::new(WIDTH / 2.0, HEIGHT / 2.0), 20.0),
             enemies,
             bullets,
@@ -77,6 +81,11 @@ impl MyWindowHandler {
         let old = self.frame_time;
         self.frame_time = self.timer.secs_elapsed();
         (self.frame_time - old) as f32
+    }
+
+    fn display_text(&self, graphics: &mut Graphics2D, text: &str, pos: Vec2) {
+        let formatted_text_block = self.font.layout_text(text, 32.0, TextOptions::new());
+        graphics.draw_text((pos.x, pos.y), Color::WHITE, &formatted_text_block);
     }
 }
 
@@ -92,8 +101,13 @@ impl WindowHandler for MyWindowHandler
 
         if self.enemies.len() == 0 && self.bullets.len() == 0 {
             Enemy::spawn_n(&mut self.enemies, 1 * self.level, &self.player.pos);
-            self.super_bang = self.super_bang + self.level;
+            self.super_bang = self.super_bang + 4 * self.level;
             self.level += 1;
+        }
+
+        if self.charging && self.super_bang > 0 {
+            self.super_bang -= 1;
+            self.charged_super_bang += 10;
         }
 
         // set the window title
@@ -126,7 +140,7 @@ impl WindowHandler for MyWindowHandler
                     false
                 } else {
                     true
-                }
+                };
             });
 
             enemy.update(dt)
@@ -148,9 +162,10 @@ impl WindowHandler for MyWindowHandler
             particle.update(dt)
         });
 
-        let hud_text = format!("Level {}, Super Bangs {}, Health: {}", self.level, self.super_bang, self.player.radius);
-        let text = self.font.layout_text(hud_text.as_ref(), 32.0, TextOptions::new());
-        graphics.draw_text((20.0, 50.0), Color::WHITE, &text);
+        self.display_text(graphics, &format!("Level {}, Health: {}", self.level, self.player.radius), Vec2::new(20.0, 50.0));
+        self.display_text(graphics, &format!("Super Bangs {}, Charged: {}", self.super_bang, self.charged_super_bang), Vec2::new(20.0, 90.0));
+
+
 
         // draw next frame
         helper.request_redraw();
@@ -166,11 +181,17 @@ impl WindowHandler for MyWindowHandler
             let vel = (self.mouse_pos - self.player.pos).normalize().unwrap() * 200.0;
             self.bullets.push(Bullet::new(self.player.pos, vel, 5.0));
         } else if let MouseButton::Right = button {
-            if self.super_bang > 0 {
-                self.sound.play();
-                self.super_bang = self.super_bang - 1;
-                Bullet::super_bang(&mut self.bullets, 100, self.player.pos);
-            }
+            self.charging = true;
+        }
+    }
+
+    fn on_mouse_button_up(&mut self, helper: &mut WindowHelper<()>, button: MouseButton) {
+        if let MouseButton::Right = button {
+            self.charging = false;
+            self.sound.play();
+
+            Bullet::super_bang(&mut self.bullets, self.charged_super_bang.max(10), self.player.pos);
+            self.charged_super_bang = 0;
         }
     }
 }
