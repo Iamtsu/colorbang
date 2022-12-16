@@ -5,7 +5,6 @@ mod player;
 mod bullet;
 mod game_entity;
 
-use std::io::Repeat;
 use speedy2d::color::Color;
 use speedy2d::{Graphics2D, Window};
 use speedy2d::window::{MouseButton, WindowHandler, WindowHelper, WindowStartupInfo};
@@ -131,12 +130,12 @@ impl WindowHandler for MyWindowHandler
             }
         });
 
-        /// collide with enemy
+        // collide with enemy
         let len = self.enemies.len();
         for i in 0..len {
             let mut e1: Enemy = self.enemies.remove(i);
 
-            /// collide enemy with player
+            // collide enemy with player
             if collide(&e1, &self.player) {
                 self.sound.play();
                 e1.deal_damage(&self.player.vel, self.player.radius);
@@ -144,7 +143,7 @@ impl WindowHandler for MyWindowHandler
                 Particle::spawn_particles(&mut self.particles, 10, 500.0, self.player.color, e1.pos);
             }
 
-            /// collide enemy with bullets
+            // collide enemy with bullets
             self.bullets.retain_mut(|bullet: &mut Bullet| {
                 return if collide(&e1, bullet) {
                     self.sound.play();
@@ -157,7 +156,7 @@ impl WindowHandler for MyWindowHandler
                 };
             });
 
-            /// collide enemy with enemy
+            // collide enemy with enemy
             for j in i + 1..len {
                 let mut e2: Enemy = self.enemies.remove(j - 1);
                 if collide(&e1, &e2) {
@@ -216,7 +215,7 @@ impl WindowHandler for MyWindowHandler
         }
     }
 
-    fn on_mouse_button_up(&mut self, helper: &mut WindowHelper<()>, button: MouseButton) {
+    fn on_mouse_button_up(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
         if let MouseButton::Right = button {
             self.charging = false;
             self.sound.play();
