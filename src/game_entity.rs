@@ -16,7 +16,7 @@ pub fn collide(e1: &impl GameEntity, e2: &impl GameEntity) -> bool {
 
 #[inline]
 pub fn impulse(v1: &Vec2, m1: f32, v2: &Vec2, m2: f32) -> Vec2 {
-    (v1 * m1 + (v2 * 2.0 - v1) * m2) / (m1 + m2)
+    (v1 * m1 + (v2  - v1) * m2) / (m1 + m2)
 }
 
 

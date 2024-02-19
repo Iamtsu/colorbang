@@ -6,6 +6,22 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-kira = "0.7.1"
+kira = "0.8.7"
 rand = "0.8.5"
 speedy2d = "2.0.0"
+
+[profile.release]
+opt-level = 3
+strip = "debuginfo"
+overflow-checks = false
+#lto = true
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies, but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
+strip = "debuginfo"
+overflow-checks = false
