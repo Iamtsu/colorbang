@@ -19,6 +19,7 @@ use crate::particle::Particle;
 use crate::enemy::Enemy;
 use crate::game_entity::{collide, GameEntity};
 use crate::player::Player;
+use crate::sound::SoundType;
 
 const WIDTH: f32 = 1280.0;
 const HEIGHT: f32 = 960.0;
@@ -99,7 +100,7 @@ impl WindowHandler for MyWindowHandler
     {
         let dt = self.frame_time();
 
-        if self.enemies.len() == 0 && self.bullets.len() == 0 {
+        if self.enemies.len() == 0 {
             Enemy::spawn_n(&mut self.enemies, 1 * self.level, &self.player.pos);
             self.super_bang = self.super_bang + 4 * self.level;
             self.level += 1;
@@ -137,7 +138,7 @@ impl WindowHandler for MyWindowHandler
 
             // collide enemy with player
             if collide(&e1, &self.player) {
-                self.sound.play();
+                self.sound.play(SoundType::SuperBlip);
                 e1.deal_damage(&self.player.vel, self.player.radius);
                 self.player.deal_damage(&e1.vel, e1.radius);
                 Particle::spawn_particles(&mut self.particles, 10, 500.0, self.player.color, e1.pos);
@@ -146,7 +147,7 @@ impl WindowHandler for MyWindowHandler
             // collide enemy with bullets
             self.bullets.retain_mut(|bullet: &mut Bullet| {
                 return if collide(&e1, bullet) {
-                    self.sound.play();
+                    self.sound.play(SoundType::SuperBlip);
                     e1.deal_damage(&bullet.vel, bullet.radius / 20.0);
                     bullet.deal_damage(&e1.vel, e1.radius);
                     Particle::spawn_particles(&mut self.particles, 80, 500.0, e1.color, e1.pos);
@@ -160,7 +161,7 @@ impl WindowHandler for MyWindowHandler
             for j in i + 1..len {
                 let mut e2: Enemy = self.enemies.remove(j - 1);
                 if collide(&e1, &e2) {
-                    self.sound.play();
+                    self.sound.play(SoundType::SuperBlip);
                     e1.deal_damage(&e2.vel, e2.radius);
                     e2.deal_damage(&e1.vel, e1.radius);
                     Particle::spawn_particles(&mut self.particles, 50, 500.0, e1.color, e1.pos);
@@ -204,7 +205,7 @@ impl WindowHandler for MyWindowHandler
 
     fn on_mouse_button_down(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
         if let MouseButton::Left = button {
-            self.sound.play();
+            self.sound.play(SoundType::Blip);
             let vel = (self.mouse_pos - self.player.pos).normalize().unwrap() * 200.0;
             self.bullets.push(Bullet::new(self.player.pos, vel, 5.0));
         } else if let MouseButton::Right = button {
@@ -218,7 +219,7 @@ impl WindowHandler for MyWindowHandler
     fn on_mouse_button_up(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
         if let MouseButton::Right = button {
             self.charging = false;
-            self.sound.play();
+            self.sound.play(SoundType::SuperBang);
 
             Bullet::super_bang(&mut self.bullets, self.charged_super_bang.max(10), self.player.pos);
             self.charged_super_bang = 0;
