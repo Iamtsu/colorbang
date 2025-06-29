@@ -12,10 +12,15 @@ pub struct Player {
     pub color: Color,
     pub layer: u8,
     pub mask: u8,
+    pub angle:f32,
 }
 
 impl GameEntity for Player {
     fn draw(&self, graphics: &mut Graphics2D) {
+        let (sin, cos) = self.angle.sin_cos();
+        let outer_radius = self.radius + 6.0;
+        let thickness = 8.0;
+        graphics.draw_line(self.pos,self.pos+ Vec2::new(cos *outer_radius, sin * outer_radius),thickness, Color::CYAN);
         graphics.draw_circle((self.pos.x, self.pos.y), self.radius, self.color);
     }
 
@@ -48,6 +53,7 @@ impl Player {
             color: Color::WHITE,
             layer: COL_PLAYER,
             mask: COL_ENEMY,
+            angle: 0.0,
         }
     }
 }

@@ -40,6 +40,8 @@ struct MyWindowHandler {
     super_bang: u32,
     charged_super_bang: u32,
     charging: bool,
+    bullets_fired: u32,
+    bullets_hit: u32,
 
     player: Player,
     enemies: Vec<Enemy>,
@@ -69,6 +71,8 @@ impl MyWindowHandler {
             super_bang: 0,
             charged_super_bang: 0,
             charging: false,
+            bullets_fired:0,
+            bullets_hit: 0,
             player: Player::new(Vec2::new(WIDTH / 2.0, HEIGHT / 2.0), 20.0),
             enemies,
             bullets,
@@ -100,7 +104,7 @@ impl WindowHandler for MyWindowHandler
     {
         let dt = self.frame_time();
 
-        if self.enemies.len() == 0 {
+        if self.enemies.len() == 0 && self.bullets.len() == 0 {
             self.sound.play(SoundType::Wave);
             Enemy::spawn_n(&mut self.enemies, 1 * self.level, &self.player.pos);
             self.super_bang = self.super_bang + 4 * self.level;
@@ -112,6 +116,13 @@ impl WindowHandler for MyWindowHandler
             self.charged_super_bang += 10;
             self.sound.play(SoundType::Load);
         }
+
+        let dir = self.mouse_pos - self.player.pos;
+        let mut angle = dir.y.atan2(dir.x);
+        if angle < 0.0 {
+            angle += std::f32::consts::TAU; // TAU = 2*PI
+        }
+        self.player.angle = angle;
 
         // set the window title
         helper.set_title(format!("Color Bang! FPS: {:.0} Particles: {}, Enemies: {}, Bullets: {}", 1.0 / dt, self.particles.len(), self.enemies.len(), self.bullets.len()));
@@ -153,6 +164,7 @@ impl WindowHandler for MyWindowHandler
                     e1.deal_damage(&bullet.vel, bullet.radius / 20.0);
                     bullet.deal_damage(&e1.vel, e1.radius);
                     Particle::spawn_particles(&mut self.particles, 80, 500.0, e1.color, e1.pos);
+                    self.bullets_hit += 1;
                     false
                 } else {
                     true
@@ -193,8 +205,9 @@ impl WindowHandler for MyWindowHandler
             particle.update(dt)
         });
 
-        self.display_text(graphics, &format!("Level {}, Health: {}", self.level, self.player.radius), Vec2::new(20.0, 50.0));
-        self.display_text(graphics, &format!("Super Bangs {}, Charged: {}", self.super_bang, self.charged_super_bang), Vec2::new(20.0, 90.0));
+        self.display_text(graphics, &format!("Level: {}, Health: {}", self.level, self.player.radius), Vec2::new(20.0, 50.0));
+        self.display_text(graphics, &format!("Super Bangs: {}, Charged: {}", self.super_bang, self.charged_super_bang), Vec2::new(20.0, 90.0));
+        self.display_text(graphics, &format!("Hit: {}, Wasted: {}", self.bullets_hit, self.bullets_fired-self.bullets_hit), Vec2::new(20.0, 130.0));
 
 
         // draw next frame
@@ -210,6 +223,7 @@ impl WindowHandler for MyWindowHandler
             self.sound.play(SoundType::Fire);
             let vel = (self.mouse_pos - self.player.pos).normalize().unwrap() * 200.0;
             self.bullets.push(Bullet::new(self.player.pos, vel, 5.0));
+            self.bullets_fired += 1;
         } else if let MouseButton::Right = button {
             self.sound.play(SoundType::Load);
             self.charging = true;
@@ -223,9 +237,11 @@ impl WindowHandler for MyWindowHandler
         if let MouseButton::Right = button {
             self.charging = false;
             self.sound.play(SoundType::MultiFire);
-
-            Bullet::super_bang(&mut self.bullets, self.charged_super_bang.max(10), self.player.pos);
+            
+            let num_bullets = self.charged_super_bang.max(10);
+            Bullet::super_bang(&mut self.bullets, num_bullets, self.player.pos);
             self.charged_super_bang = 0;
+            self.bullets_fired += num_bullets;
         }
     }
 }
