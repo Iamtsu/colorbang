@@ -3,7 +3,7 @@ use kira::{
 };
 use std::io::Cursor;
 
-use anyhow::{Context, Result};
+use anyhow::{ Result};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
