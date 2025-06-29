@@ -1,23 +1,25 @@
-mod particle;
-mod sound;
-mod enemy;
-mod player;
 mod bullet;
+mod enemy;
 mod game_entity;
+mod particle;
+mod player;
+mod sound;
 
+use crate::bullet::Bullet;
 use speedy2d::color::Color;
-use speedy2d::{Graphics2D, Window};
-use speedy2d::window::{MouseButton, WindowHandler, WindowHelper, WindowStartupInfo};
-use speedy2d::font::TextLayout;
 use speedy2d::dimen::{Vec2, Vector2};
+use speedy2d::font::TextLayout;
 use speedy2d::font::{Font, TextOptions};
 use speedy2d::shape::Rectangle;
 use speedy2d::time::Stopwatch;
-use crate::bullet::Bullet;
+use speedy2d::window::{
+    KeyScancode, MouseButton, VirtualKeyCode, WindowHandler, WindowHelper, WindowStartupInfo,
+};
+use speedy2d::{Graphics2D, Window};
 
-use crate::particle::Particle;
 use crate::enemy::Enemy;
 use crate::game_entity::{collide, GameEntity};
+use crate::particle::Particle;
 use crate::player::Player;
 use crate::sound::SoundType;
 
@@ -27,6 +29,8 @@ const HEIGHT: f32 = 960.0;
 const COL_PLAYER: u8 = 0b00000001;
 const COL_ENEMY: u8 = 0b00000010;
 const COL_BULLET: u8 = 0b00000100;
+
+const COOLDOWN_RATE: f32 = 0.2; // cooldown for firing bullets
 
 struct MyWindowHandler {
     timer: Stopwatch,
@@ -40,8 +44,12 @@ struct MyWindowHandler {
     super_bang: u32,
     charged_super_bang: u32,
     charging: bool,
+
     bullets_fired: u32,
     bullets_hit: u32,
+
+    firing: bool,
+    firing_cooldown: f32,
 
     player: Player,
     enemies: Vec<Enemy>,
@@ -71,8 +79,13 @@ impl MyWindowHandler {
             super_bang: 0,
             charged_super_bang: 0,
             charging: false,
-            bullets_fired:0,
+
+            bullets_fired: 0,
             bullets_hit: 0,
+
+            firing: false,
+            firing_cooldown: 0.0,
+
             player: Player::new(Vec2::new(WIDTH / 2.0, HEIGHT / 2.0), 20.0),
             enemies,
             bullets,
@@ -94,17 +107,15 @@ impl MyWindowHandler {
     }
 }
 
-impl WindowHandler for MyWindowHandler
-{
+impl WindowHandler for MyWindowHandler {
     fn on_start(&mut self, _helper: &mut WindowHelper<()>, _info: WindowStartupInfo) {
         self.frame_time();
     }
 
-    fn on_draw(&mut self, helper: &mut WindowHelper, graphics: &mut Graphics2D)
-    {
+    fn on_draw(&mut self, helper: &mut WindowHelper, graphics: &mut Graphics2D) {
         let dt = self.frame_time();
 
-        if self.enemies.len() == 0 && self.bullets.len() == 0 {
+        if self.enemies.len() == 0  {
             self.sound.play(SoundType::Wave);
             Enemy::spawn_n(&mut self.enemies, 1 * self.level, &self.player.pos);
             self.super_bang = self.super_bang + 4 * self.level;
@@ -117,6 +128,18 @@ impl WindowHandler for MyWindowHandler
             self.sound.play(SoundType::Load);
         }
 
+        if self.firing {
+            if self.firing_cooldown > 0.0 {
+                self.firing_cooldown -= dt;
+            } else {
+                self.firing_cooldown = COOLDOWN_RATE; // cooldown for firing
+                self.sound.play(SoundType::Fire);
+                let vel = (self.mouse_pos - self.player.pos).normalize().unwrap() * 200.0;
+                self.bullets.push(Bullet::new(self.player.pos, vel, 5.0));
+                self.bullets_fired += 1;
+            }
+        }
+
         let dir = self.mouse_pos - self.player.pos;
         let mut angle = dir.y.atan2(dir.x);
         if angle < 0.0 {
@@ -125,7 +148,13 @@ impl WindowHandler for MyWindowHandler
         self.player.angle = angle;
 
         // set the window title
-        helper.set_title(format!("Color Bang! FPS: {:.0} Particles: {}, Enemies: {}, Bullets: {}", 1.0 / dt, self.particles.len(), self.enemies.len(), self.bullets.len()));
+        helper.set_title(format!(
+            "Color Bang! FPS: {:.0} Particles: {}, Enemies: {}, Bullets: {}",
+            1.0 / dt,
+            self.particles.len(),
+            self.enemies.len(),
+            self.bullets.len()
+        ));
 
         // set the background
         graphics.draw_rectangle(self.background_rect.clone(), self.background_color);
@@ -141,7 +170,7 @@ impl WindowHandler for MyWindowHandler
                 true
             } else {
                 false
-            }
+            };
         });
 
         // collide with enemy
@@ -154,7 +183,13 @@ impl WindowHandler for MyWindowHandler
                 self.sound.play(SoundType::Explode);
                 e1.deal_damage(&self.player.vel, self.player.radius);
                 self.player.deal_damage(&e1.vel, e1.radius);
-                Particle::spawn_particles(&mut self.particles, 10, 500.0, self.player.color, e1.pos);
+                Particle::spawn_particles(
+                    &mut self.particles,
+                    10,
+                    500.0,
+                    self.player.color,
+                    e1.pos,
+                );
             }
 
             // collide enemy with bullets
@@ -180,13 +215,11 @@ impl WindowHandler for MyWindowHandler
                     e2.deal_damage(&e1.vel, e1.radius);
                     Particle::spawn_particles(&mut self.particles, 50, 500.0, e1.color, e1.pos);
                 }
-                self.enemies.insert(0,e2);
+                self.enemies.insert(0, e2);
             }
 
-            self.enemies.insert(0,e1);
+            self.enemies.insert(0, e1);
         }
-
-
 
         // update bullets
         self.bullets.retain_mut(|bullet: &mut Bullet| {
@@ -195,8 +228,10 @@ impl WindowHandler for MyWindowHandler
             }
 
             bullet.update(dt)
-                && bullet.pos.x > 0.0 && bullet.pos.x < WIDTH
-                && bullet.pos.y > 0.0 && bullet.pos.y < HEIGHT
+                && bullet.pos.x > 0.0
+                && bullet.pos.x < WIDTH
+                && bullet.pos.y > 0.0
+                && bullet.pos.y < HEIGHT
         });
 
         // render & update particles
@@ -214,18 +249,56 @@ impl WindowHandler for MyWindowHandler
         helper.request_redraw();
     }
 
+    fn on_key_down(
+        &mut self,
+        _helper: &mut WindowHelper<()>,
+        virtual_key_code: Option<VirtualKeyCode>,
+        _scancode: KeyScancode,
+    ) {
+        match virtual_key_code {
+            Some(VirtualKeyCode::Space) => {
+                self.firing = true;
+            }
+            Some(VirtualKeyCode::R) => {
+                self.charging = true;
+            }
+            _ => {}
+        }
+    }
+
+    fn on_key_up(
+        &mut self,
+        _helper: &mut WindowHelper<()>,
+        virtual_key_code: Option<VirtualKeyCode>,
+        _scancode: KeyScancode,
+    ) {
+        match virtual_key_code {
+            Some(VirtualKeyCode::Space) => {
+                self.firing = false;
+                self.firing_cooldown = 0.0;
+            }
+            Some(VirtualKeyCode::R) => {
+                self.charging = false;
+                self.sound.play(SoundType::MultiFire);
+
+                let num_bullets = self.charged_super_bang.max(10);
+                Bullet::super_bang(&mut self.bullets, num_bullets, self.player.pos);
+                self.charged_super_bang = 0;
+                self.bullets_fired += num_bullets;
+            }
+            _ => {}
+        }
+    }
+
     fn on_mouse_move(&mut self, _helper: &mut WindowHelper<()>, position: Vec2) {
         self.mouse_pos = position;
     }
 
     fn on_mouse_button_down(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
         if let MouseButton::Left = button {
-            self.sound.play(SoundType::Fire);
-            let vel = (self.mouse_pos - self.player.pos).normalize().unwrap() * 200.0;
-            self.bullets.push(Bullet::new(self.player.pos, vel, 5.0));
-            self.bullets_fired += 1;
+            self.firing = true;
         } else if let MouseButton::Right = button {
-            self.sound.play(SoundType::Load);
+            // self.sound.play(SoundType::Load);
             self.charging = true;
         } else if let MouseButton::Middle = button {
             self.sound.play(SoundType::Wave);
@@ -234,10 +307,15 @@ impl WindowHandler for MyWindowHandler
     }
 
     fn on_mouse_button_up(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
-        if let MouseButton::Right = button {
+        if let MouseButton::Left = button {
+            self.firing = false;
+            self.firing_cooldown = 0.0;
+        } else if let MouseButton::Middle = button {
+           //
+        } else if let MouseButton::Right = button {
             self.charging = false;
             self.sound.play(SoundType::MultiFire);
-            
+
             let num_bullets = self.charged_super_bang.max(10);
             Bullet::super_bang(&mut self.bullets, num_bullets, self.player.pos);
             self.charged_super_bang = 0;
