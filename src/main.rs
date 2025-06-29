@@ -37,6 +37,8 @@ struct MyWindowHandler {
     frame_time: f64,
     mouse_pos: Vec2,
 
+    cursor_visible: bool,
+
     font: Font,
     sound: sound::SoundPlayer,
 
@@ -75,6 +77,9 @@ impl MyWindowHandler {
             sound: sound::SoundPlayer::new().unwrap(),
             timer,
             font,
+
+            cursor_visible: true,
+
             level: 1,
             super_bang: 0,
             charged_super_bang: 0,
@@ -115,7 +120,7 @@ impl WindowHandler for MyWindowHandler {
     fn on_draw(&mut self, helper: &mut WindowHelper, graphics: &mut Graphics2D) {
         let dt = self.frame_time();
 
-        if self.enemies.len() == 0  {
+        if self.enemies.len() == 0 {
             self.sound.play(SoundType::Wave);
             Enemy::spawn_n(&mut self.enemies, 1 * self.level, &self.player.pos);
             self.super_bang = self.super_bang + 4 * self.level;
@@ -134,18 +139,31 @@ impl WindowHandler for MyWindowHandler {
             } else {
                 self.firing_cooldown = COOLDOWN_RATE; // cooldown for firing
                 self.sound.play(SoundType::Fire);
-                let vel = (self.mouse_pos - self.player.pos).normalize().unwrap() * 200.0;
+
+                // use self.player.angle to calculate the bullet velocity
+                let (sin, cos) = self.player.angle.sin_cos();
+                let vel = Vec2::new(cos, sin) * 200.0; // bullet speed
+
                 self.bullets.push(Bullet::new(self.player.pos, vel, 5.0));
                 self.bullets_fired += 1;
             }
         }
 
-        let dir = self.mouse_pos - self.player.pos;
-        let mut angle = dir.y.atan2(dir.x);
-        if angle < 0.0 {
-            angle += std::f32::consts::TAU; // TAU = 2*PI
+        if self.cursor_visible {
+            let dir = self.mouse_pos - self.player.pos;
+            let mut angle = dir.y.atan2(dir.x);
+            if angle < 0.0 {
+                angle += std::f32::consts::TAU; // TAU = 2*PI
+            }
+            self.player.angle = angle;
+        } else {
+            self.player.angle += self.player.rot * dt;
+            if self.player.angle < 0.0 {
+                self.player.angle += std::f32::consts::TAU; // TAU = 2*PI
+            } else if self.player.angle > std::f32::consts::TAU {
+                self.player.angle -= std::f32::consts::TAU; // TAU = 2*PI
+            }
         }
-        self.player.angle = angle;
 
         // set the window title
         helper.set_title(format!(
@@ -262,7 +280,20 @@ impl WindowHandler for MyWindowHandler {
             Some(VirtualKeyCode::R) => {
                 self.charging = true;
             }
+            Some(VirtualKeyCode::A) => {
+                self.player.rot = -5.0;
+            }
+            Some(VirtualKeyCode::D) => {
+                self.player.rot = 5.0;
+            }
+            Some(VirtualKeyCode::W) => {
+                self.player.speed = 100.0; // move forward
+            }
+            Some(VirtualKeyCode::S) => {
+                self.player.speed = - 100.0; // move backward
+            }
             _ => {}
+
         }
     }
 
@@ -273,6 +304,11 @@ impl WindowHandler for MyWindowHandler {
         _scancode: KeyScancode,
     ) {
         match virtual_key_code {
+            Some(VirtualKeyCode::Escape) => {
+                self.cursor_visible = !self.cursor_visible;
+                _helper.set_cursor_visible( self.cursor_visible);
+                _helper.set_cursor_grab( !self.cursor_visible);
+            }
             Some(VirtualKeyCode::Space) => {
                 self.firing = false;
                 self.firing_cooldown = 0.0;
@@ -285,6 +321,12 @@ impl WindowHandler for MyWindowHandler {
                 Bullet::super_bang(&mut self.bullets, num_bullets, self.player.pos);
                 self.charged_super_bang = 0;
                 self.bullets_fired += num_bullets;
+            }
+            Some(VirtualKeyCode::A) => {
+                self.player.rot = 0.0;
+            }
+            Some(VirtualKeyCode::D) => {
+                self.player.rot = 0.0;
             }
             _ => {}
         }
