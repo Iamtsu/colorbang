@@ -114,6 +114,102 @@ impl MyWindowHandler {
         let formatted_text_block = self.font.layout_text(text, 32.0, TextOptions::new());
         graphics.draw_text((pos.x, pos.y), Color::WHITE, &formatted_text_block);
     }
+    
+    fn update(&mut self, dt: f32) {
+        self.player.update(dt);
+
+        self.enemies.retain_mut(|enemy: &mut Enemy| {
+            enemy.update(dt)
+        });
+
+        // update bullets
+        self.bullets.retain_mut(|bullet: &mut Bullet| {
+            bullet.update(dt)
+                && bullet.pos.x > 0.0
+                && bullet.pos.x < WIDTH
+                && bullet.pos.y > 0.0
+                && bullet.pos.y < HEIGHT
+        });
+
+        // render & update particles
+        self.particles.retain_mut(|particle| {
+            particle.update(dt)
+        });
+        
+        // collision detection and response
+        let len = self.enemies.len();
+        for i in 0..len {
+            let mut e1: Enemy = self.enemies.remove(i);
+
+            // collide enemy with player
+            if collide(&e1, &self.player) {
+                self.sound.play(SoundType::Explode);
+                e1.deal_damage(&self.player.vel, self.player.radius);
+                self.player.deal_damage(&e1.vel, e1.radius);
+                Particle::spawn_particles(
+                    &mut self.particles,
+                    10,
+                    500.0,
+                    self.player.color,
+                    e1.pos,
+                );
+            }
+
+            // collide enemy with bullets
+            self.bullets.retain_mut(|bullet: &mut Bullet| {
+                return if collide(&e1, bullet) {
+                    self.sound.play(SoundType::Explode);
+                    e1.deal_damage(&bullet.vel, bullet.radius / 20.0);
+                    bullet.deal_damage(&e1.vel, e1.radius);
+                    Particle::spawn_particles(&mut self.particles, 80, 500.0, e1.color, e1.pos);
+                    self.bullets_hit += 1;
+                    false
+                } else {
+                    true
+                };
+            });
+
+            // collide enemy with enemy
+            for j in i + 1..len {
+                let mut e2: Enemy = self.enemies.remove(j - 1);
+                if collide(&e1, &e2) {
+                    self.sound.play(SoundType::Explode);
+                    e1.deal_damage(&e2.vel, e2.radius);
+                    e2.deal_damage(&e1.vel, e1.radius);
+                    Particle::spawn_particles(&mut self.particles, 50, 500.0, e1.color, e1.pos);
+                }
+                self.enemies.insert(0, e2);
+            }
+
+            self.enemies.insert(0, e1);
+        }
+        
+    }
+    
+    fn draw(&mut self, graphics: &mut Graphics2D) {
+        
+        graphics.draw_rectangle(self.background_rect.clone(), self.background_color);
+        
+        self.player.draw(graphics);
+        
+        for enemy in &self.enemies {
+            enemy.draw(graphics);
+        }
+        
+        for bullet in &self.bullets {
+            bullet.draw(graphics);
+        }
+        
+        for particle in &self.particles {
+            particle.draw(graphics);
+        }
+
+        self.display_text(graphics, &format!("Level: {}, Health: {}", self.level, self.player.radius), Vec2::new(20.0, 50.0));
+        self.display_text(graphics, &format!("Super Bangs: {}, Charged: {}", self.super_bang, self.charged_super_bang), Vec2::new(20.0, 90.0));
+        self.display_text(graphics, &format!("Hit: {}, Wasted: {}", self.bullets_hit, self.bullets_fired-self.bullets_hit), Vec2::new(20.0, 130.0));
+
+    }
+    
 }
 
 impl WindowHandler for MyWindowHandler {
@@ -176,105 +272,18 @@ impl WindowHandler for MyWindowHandler {
             }
         }
 
-        // set the window title
-        helper.set_title(format!(
-            "Color Bang! FPS: {:.0} Particles: {}, Enemies: {}, Bullets: {}",
-            1.0 / dt,
-            self.particles.len(),
-            self.enemies.len(),
-            self.bullets.len()
-        ));
+        // // set the window title
+        // helper.set_title(format!(
+        //     "Color Bang! FPS: {:.0} Particles: {}, Enemies: {}, Bullets: {}",
+        //     1.0 / dt,
+        //     self.particles.len(),
+        //     self.enemies.len(),
+        //     self.bullets.len()
+        // ));
 
-        // set the background
-        graphics.draw_rectangle(self.background_rect.clone(), self.background_color);
-
-        // render player
-        self.player.draw(graphics);
-        self.player.update(dt);
-
-        // update enemies
-        self.enemies.retain_mut(|enemy: &mut Enemy| {
-            return if enemy.update(dt) {
-                enemy.draw(graphics);
-                true
-            } else {
-                false
-            };
-        });
-
-        // collide with enemy
-        let len = self.enemies.len();
-        for i in 0..len {
-            let mut e1: Enemy = self.enemies.remove(i);
-
-            // collide enemy with player
-            if collide(&e1, &self.player) {
-                self.sound.play(SoundType::Explode);
-                e1.deal_damage(&self.player.vel, self.player.radius);
-                self.player.deal_damage(&e1.vel, e1.radius);
-                Particle::spawn_particles(
-                    &mut self.particles,
-                    10,
-                    500.0,
-                    self.player.color,
-                    e1.pos,
-                );
-            }
-
-            // collide enemy with bullets
-            self.bullets.retain_mut(|bullet: &mut Bullet| {
-                return if collide(&e1, bullet) {
-                    self.sound.play(SoundType::Explode);
-                    e1.deal_damage(&bullet.vel, bullet.radius / 20.0);
-                    bullet.deal_damage(&e1.vel, e1.radius);
-                    Particle::spawn_particles(&mut self.particles, 80, 500.0, e1.color, e1.pos);
-                    self.bullets_hit += 1;
-                    false
-                } else {
-                    true
-                };
-            });
-
-            // collide enemy with enemy
-            for j in i + 1..len {
-                let mut e2: Enemy = self.enemies.remove(j - 1);
-                if collide(&e1, &e2) {
-                    self.sound.play(SoundType::Explode);
-                    e1.deal_damage(&e2.vel, e2.radius);
-                    e2.deal_damage(&e1.vel, e1.radius);
-                    Particle::spawn_particles(&mut self.particles, 50, 500.0, e1.color, e1.pos);
-                }
-                self.enemies.insert(0, e2);
-            }
-
-            self.enemies.insert(0, e1);
-        }
-
-        // update bullets
-        self.bullets.retain_mut(|bullet: &mut Bullet| {
-            if bullet.health > 0 {
-                bullet.draw(graphics);
-            }
-
-            bullet.update(dt)
-                && bullet.pos.x > 0.0
-                && bullet.pos.x < WIDTH
-                && bullet.pos.y > 0.0
-                && bullet.pos.y < HEIGHT
-        });
-
-        // render & update particles
-        self.particles.retain_mut(|particle| {
-            particle.draw(graphics);
-            particle.update(dt)
-        });
-
-        self.display_text(graphics, &format!("Level: {}, Health: {}", self.level, self.player.radius), Vec2::new(20.0, 50.0));
-        self.display_text(graphics, &format!("Super Bangs: {}, Charged: {}", self.super_bang, self.charged_super_bang), Vec2::new(20.0, 90.0));
-        self.display_text(graphics, &format!("Hit: {}, Wasted: {}", self.bullets_hit, self.bullets_fired-self.bullets_hit), Vec2::new(20.0, 130.0));
-
-
-        // draw next frame
+        self.update(dt);
+        self.draw(graphics);
+        
         helper.request_redraw();
     }
 
