@@ -37,6 +37,8 @@ struct MyWindowHandler {
     frame_time: f64,
     mouse_pos: Vec2,
 
+    paused: bool,
+    
     cursor_visible: bool,
 
     font: Font,
@@ -78,6 +80,8 @@ impl MyWindowHandler {
             timer,
             font,
 
+            paused: false,
+            
             cursor_visible: true,
 
             level: 1,
@@ -120,6 +124,13 @@ impl WindowHandler for MyWindowHandler {
     fn on_draw(&mut self, helper: &mut WindowHelper, graphics: &mut Graphics2D) {
         let dt = self.frame_time();
 
+        if self.paused {
+            graphics.draw_rectangle(self.background_rect.clone(), self.background_color);
+            self.display_text(graphics, "PAUSED", Vec2::new(WIDTH / 2.0 - 80.0, HEIGHT / 2.0));
+            helper.request_redraw();
+            return;
+        }
+        
         if self.enemies.len() == 0 {
             self.sound.play(SoundType::Wave);
             Enemy::spawn_n(&mut self.enemies, 1 * self.level, &self.player.pos);
@@ -274,6 +285,9 @@ impl WindowHandler for MyWindowHandler {
         _scancode: KeyScancode,
     ) {
         match virtual_key_code {
+            Some(VirtualKeyCode::Backspace) => {
+                self.paused = !self.paused;
+            }
             Some(VirtualKeyCode::Space) => {
                 self.firing = true;
             }
