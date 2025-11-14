@@ -6,12 +6,12 @@ pub fn collide(e1: &impl GameEntity, e2: &impl GameEntity) -> bool {
     let c2 = e2.collider_info();
 
     let can_collide = (*c1.layer & *c2.mask) | (*c1.mask & *c2.layer);
-    return if can_collide != 0 {
+    if can_collide != 0 {
         let dist = (c1.pos - c2.pos).magnitude();
         dist <= (*c1.radius + *c2.radius)
     } else {
         false
-    };
+    }
 }
 
 #[inline]
@@ -24,14 +24,13 @@ pub struct ColliderInfo<'a> {
     pub mask: &'a u8,
     pub layer: &'a u8,
     pub pos: &'a Vec2,
-    pub vel: &'a Vec2,
     pub radius: &'a f32,
 }
 
 pub trait GameEntity {
     fn draw(&self, graphics: &mut Graphics2D);
     fn update(&mut self, dt: f32) -> bool;
-    fn collider_info(&self) -> ColliderInfo;
+    fn collider_info(&self) -> ColliderInfo<'_>;
     fn deal_damage(&mut self, other_vel: &Vec2, other_mass: f32);
 }
 
