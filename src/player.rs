@@ -40,12 +40,11 @@ impl GameEntity for Player {
         true
     }
 
-    fn collider_info(&self) -> ColliderInfo {
+    fn collider_info(&self) -> ColliderInfo<'_> {
         ColliderInfo {
             mask: &self.mask,
             layer: &self.layer,
             pos: &self.pos,
-            vel: &self.vel,
             radius: &self.radius,
         }
     }
