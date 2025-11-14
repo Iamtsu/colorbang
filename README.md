@@ -89,6 +89,17 @@ The game uses aggressive optimization even in debug builds:
 
 The game uses a trait-based entity system where all interactive objects (Player, Enemy, Bullet, Particle) implement the `GameEntity` trait. Collisions are handled via a layer-mask system using bitflags for efficient filtering.
 
+## Release with `release-vX` tags
+
+```bash
+# create a release tag 
+git tag -a release-v1.4 -m "release 1.4, gogogo"
+
+# push the tag to origin
+git push origin release-v1.4
+
+```
+
 ## Contributing
 
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to submit pull requests.
