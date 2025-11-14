@@ -170,22 +170,6 @@ impl MyWindowHandler {
             });
         }
 
-        // Enemy-enemy collisions (avoid double-processing)
-        // let len = self.enemies.len();
-        // for i in 0..len {
-        //     for j in (i + 1)..len {
-        //             let (left, right) = self.enemies.split_at_mut(j);
-        //             let e1 = &mut left[i];
-        //             let e2 = &mut right[0];
-        //             if collide(e1, e2) {
-        //                 self.sound.play(SoundType::Explode);
-        //                 e1.deal_damage(&e2.vel, e2.radius);
-        //                 e2.deal_damage(&e1.vel, e1.radius);
-        //                 Particle::spawn_particles(&mut self.particles, 50, 500.0, e1.color, e1.pos);
-        //             }
-        //         }
-        // 
-        // }
         let ptr = self.enemies.as_mut_ptr();
         let len = self.enemies.len();
         unsafe {
@@ -212,7 +196,7 @@ impl MyWindowHandler {
     }
 
     fn draw(&mut self, graphics: &mut Graphics2D) {
-        graphics.draw_rectangle(self.background_rect.clone(), self.background_color);
+        graphics.draw_rectangle(&self.background_rect, self.background_color);
 
         self.player.draw(graphics);
 
@@ -230,24 +214,17 @@ impl MyWindowHandler {
 
         self.display_text(
             graphics,
-            &format!("Level: {}, Health: {}", self.level, self.player.radius),
+            &format!("Level: {}, Health: {}", self.level, self.player.radius).as_str(),
             Vec2::new(20.0, 50.0),
         );
         self.display_text(
             graphics,
-            &format!(
-                "Super Bangs: {}, Charged: {}",
-                self.super_bang, self.charged_super_bang
-            ),
+            &format!("Super Bangs: {}, Charged: {}", self.super_bang, self.charged_super_bang).as_str(),
             Vec2::new(20.0, 90.0),
         );
         self.display_text(
             graphics,
-            &format!(
-                "Hit: {}, Wasted: {}",
-                self.bullets_hit,
-                self.bullets_fired - self.bullets_hit
-            ),
+            &format!("Hit: {}, Wasted: {}", self.bullets_hit, self.bullets_fired - self.bullets_hit).as_str(),
             Vec2::new(20.0, 130.0),
         );
     }
@@ -312,7 +289,7 @@ impl WindowHandler for MyWindowHandler {
 
         if self.paused {
             //self.draw(graphics);
-            graphics.draw_rectangle(self.background_rect.clone(), self.background_color);
+            graphics.draw_rectangle(&self.background_rect, self.background_color);
             self.display_text(
                 graphics,
                 "PAUSED",
@@ -324,6 +301,39 @@ impl WindowHandler for MyWindowHandler {
         }
 
         helper.request_redraw();
+    }
+
+    fn on_mouse_move(&mut self, _helper: &mut WindowHelper<()>, position: Vec2) {
+        self.mouse_pos = position;
+    }
+
+    fn on_mouse_button_down(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
+        if let MouseButton::Left = button {
+            self.firing = true;
+        } else if let MouseButton::Right = button {
+            // self.sound.play(SoundType::Load);
+            self.charging = true;
+        } else if let MouseButton::Middle = button {
+            self.sound.play(SoundType::Wave);
+            Enemy::spawn_n(&mut self.enemies, 10, &self.player.pos);
+        }
+    }
+
+    fn on_mouse_button_up(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
+        if let MouseButton::Left = button {
+            self.firing = false;
+            self.firing_cooldown = 0.0;
+        } else if let MouseButton::Middle = button {
+            //
+        } else if let MouseButton::Right = button {
+            self.charging = false;
+            self.sound.play(SoundType::MultiFire);
+
+            let num_bullets = std::cmp::max(10,self.charged_super_bang);
+            Bullet::super_bang(&mut self.bullets, num_bullets, self.player.pos);
+            self.charged_super_bang = 0;
+            self.bullets_fired += num_bullets;
+        }
     }
 
     fn on_key_down(
@@ -368,7 +378,7 @@ impl WindowHandler for MyWindowHandler {
             Some(VirtualKeyCode::Escape) => {
                 self.cursor_visible = !self.cursor_visible;
                 _helper.set_cursor_visible(self.cursor_visible);
-                _helper.set_cursor_grab(!self.cursor_visible);
+                let _ = _helper.set_cursor_grab(!self.cursor_visible);
             }
             Some(VirtualKeyCode::Space) => {
                 self.firing = false;
@@ -378,7 +388,7 @@ impl WindowHandler for MyWindowHandler {
                 self.charging = false;
                 self.sound.play(SoundType::MultiFire);
 
-                let num_bullets = self.charged_super_bang.max(10);
+                let num_bullets = std::cmp::max(10,self.charged_super_bang);
                 Bullet::super_bang(&mut self.bullets, num_bullets, self.player.pos);
                 self.charged_super_bang = 0;
                 self.bullets_fired += num_bullets;
@@ -390,39 +400,6 @@ impl WindowHandler for MyWindowHandler {
                 self.player.rot = 0.0;
             }
             _ => {}
-        }
-    }
-
-    fn on_mouse_move(&mut self, _helper: &mut WindowHelper<()>, position: Vec2) {
-        self.mouse_pos = position;
-    }
-
-    fn on_mouse_button_down(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
-        if let MouseButton::Left = button {
-            self.firing = true;
-        } else if let MouseButton::Right = button {
-            // self.sound.play(SoundType::Load);
-            self.charging = true;
-        } else if let MouseButton::Middle = button {
-            self.sound.play(SoundType::Wave);
-            Enemy::spawn_n(&mut self.enemies, 10, &self.player.pos);
-        }
-    }
-
-    fn on_mouse_button_up(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
-        if let MouseButton::Left = button {
-            self.firing = false;
-            self.firing_cooldown = 0.0;
-        } else if let MouseButton::Middle = button {
-            //
-        } else if let MouseButton::Right = button {
-            self.charging = false;
-            self.sound.play(SoundType::MultiFire);
-
-            let num_bullets = self.charged_super_bang.max(10);
-            Bullet::super_bang(&mut self.bullets, num_bullets, self.player.pos);
-            self.charged_super_bang = 0;
-            self.bullets_fired += num_bullets;
         }
     }
 }
