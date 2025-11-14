@@ -171,21 +171,44 @@ impl MyWindowHandler {
         }
 
         // Enemy-enemy collisions (avoid double-processing)
+        // let len = self.enemies.len();
+        // for i in 0..len {
+        //     for j in (i + 1)..len {
+        //             let (left, right) = self.enemies.split_at_mut(j);
+        //             let e1 = &mut left[i];
+        //             let e2 = &mut right[0];
+        //             if collide(e1, e2) {
+        //                 self.sound.play(SoundType::Explode);
+        //                 e1.deal_damage(&e2.vel, e2.radius);
+        //                 e2.deal_damage(&e1.vel, e1.radius);
+        //                 Particle::spawn_particles(&mut self.particles, 50, 500.0, e1.color, e1.pos);
+        //             }
+        //         }
+        // 
+        // }
+        let ptr = self.enemies.as_mut_ptr();
         let len = self.enemies.len();
-        for i in 0..len {
-            for j in (i + 1)..len {
-                    let (left, right) = self.enemies.split_at_mut(j);
-                    let e1 = &mut left[i];
-                    let e2 = &mut right[0];
+        unsafe {
+            for i in 0..len {
+                for j in (i+1)..len {
+                    let e1 = &mut *ptr.add(i);
+                    let e2 = &mut *ptr.add(j);
                     if collide(e1, e2) {
                         self.sound.play(SoundType::Explode);
                         e1.deal_damage(&e2.vel, e2.radius);
                         e2.deal_damage(&e1.vel, e1.radius);
-                        Particle::spawn_particles(&mut self.particles, 50, 500.0, e1.color, e1.pos);
+                        Particle::spawn_particles(
+                            &mut self.particles,
+                            50,
+                            500.0,
+                            e1.color,
+                            e1.pos,
+                        );
                     }
                 }
-
+            }
         }
+        
     }
 
     fn draw(&mut self, graphics: &mut Graphics2D) {
@@ -239,6 +262,7 @@ impl WindowHandler for MyWindowHandler {
     fn on_draw(&mut self, helper: &mut WindowHelper, graphics: &mut Graphics2D) {
         let dt = self.frame_time();
 
+        // spawn new wave of enemies if there are none
         if self.enemies.len() == 0 {
             self.sound.play(SoundType::Wave);
             Enemy::spawn_n(&mut self.enemies, 1 * self.level, &self.player.pos);
@@ -246,17 +270,19 @@ impl WindowHandler for MyWindowHandler {
             self.level += 1;
         }
 
+        // charge super bang
         if self.charging && self.super_bang > 0 {
             self.super_bang -= 1;
             self.charged_super_bang += 10;
             self.sound.play(SoundType::Load);
         }
 
+        // fire bullets
         if self.firing {
-            if self.firing_cooldown > 0.0 {
+            if self.firing_cooldown > 0.0 {  // prevent firing while cooling down
                 self.firing_cooldown -= dt;
             } else {
-                self.firing_cooldown = COOLDOWN_RATE; // cooldown for firing
+                self.firing_cooldown += COOLDOWN_RATE; // update cooldown for firing
                 self.sound.play(SoundType::Fire);
 
                 // use self.player.angle to calculate the bullet velocity
