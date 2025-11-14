@@ -1,0 +1,32 @@
+name: PR Branch Name Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  check-branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch name
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          echo "PR branch name: $BRANCH_NAME"
+
+          if [[ "$BRANCH_NAME" =~ ^(feature|bugfix)/.+ ]]; then
+            echo "✅ Branch name follows semantic convention: $BRANCH_NAME"
+            exit 0
+          else
+            echo "❌ Invalid branch name: $BRANCH_NAME"
+            echo ""
+            echo "Branch names must follow semantic release conventions:"
+            echo "  - feature/your-feature-name"
+            echo "  - bugfix/your-bug-fix"
+            echo ""
+            echo "Examples:"
+            echo "  ✅ feature/add-new-enemy-type"
+            echo "  ✅ bugfix/fix-collision-detection"
+            echo "  ❌ main"
+            echo "  ❌ my-changes"
+            exit 1
+          fi

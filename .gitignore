@@ -1,3 +1,16 @@
+# Rust
 /target
-/.idea
 Cargo.lock
+
+# IDE
+/.idea
+
+# Claude Code
+.claude/*
+!.claude/commands/
+!.claude/settings.json
+!.claude/hooks/
+!.claude/README.md
+.claude_history
+.claude_cache/
+*.claude.tmp
