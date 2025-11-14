@@ -23,11 +23,11 @@ pub struct SoundPlayer {
 }
 
 fn read_assets_dir() -> Result<Vec<PathBuf>> {
-    let mut ogg_files = Vec::new();
+    let mut ogg_files:Vec<PathBuf> = Vec::new();
     if let Ok(entries) = fs::read_dir("assets") {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("ogg") {
+            if path.as_path().extension().and_then(|s| s.to_str()) == Some("ogg") {
                 ogg_files.push(path);
             }
         }
@@ -50,7 +50,7 @@ impl SoundPlayer {
             for path in &ogg_files {
                 println!("Found sound file: {}", path.display());
                 let file_name = path.file_stem().unwrap().to_string_lossy().to_string();
-                let data = std::fs::read(path).unwrap();
+                let data = fs::read(path).unwrap();
                 let sound_data = StaticSoundData::from_cursor(Cursor::new(data)).unwrap();
                 sounds.insert(file_name, sound_data);
             }
@@ -61,7 +61,7 @@ impl SoundPlayer {
     }
 
     pub fn play(&mut self, sound_type: SoundType) {
-        // select a random sound from slef.sounds based on the sound type
+        // select a random sound from self.sounds based on the sound type
         let (sound_name, volume) = match sound_type {
             SoundType::Fire => (random_name("Laser_", 7, 10), -6.0),
             SoundType::Explode => (random_name("Laser_", 3, 7), 1.0),
